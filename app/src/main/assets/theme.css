@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@100..900&display=swap');
+
+@font-face {
+  font-family: 'Urbanist';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../node_modules/@fontsource-variable/urbanist/files/urbanist-latin-wght-normal.woff2') format('woff2-variations');
+}
+
+:root {
+  --bg: #000000;
+  --fg: #ffffff;
+  --muted: #8c8c8c;
+  --border: #262626;
+  --hover: #141414;
+  --press: #1f1f1f;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  color-scheme: dark;
+}
+:root[data-theme='light'] {
+  --bg: #ffffff;
+  --fg: #000000;
+  --muted: #6e6e6e;
+  --border: #e2e2e2;
+  --hover: #f3f3f3;
+  --press: #e9e9e9;
+  color-scheme: light;
+}
+/* Internal pages (new tab, error) follow the app theme via the system theme setting. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --bg: #ffffff; --fg: #000000; --muted: #6e6e6e;
+    --border: #e2e2e2; --hover: #f3f3f3; --press: #e9e9e9;
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; font-family: 'Urbanist', sans-serif; }
+button, input { font-family: 'Urbanist', sans-serif; font-size: inherit; color: inherit; }

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>New Tab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="theme.css" />
+  <style>
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); }
+    svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+    body { display: grid; place-items: center; overflow: auto; animation: in 0.5s var(--ease) both; }
+    main { width: 100%; max-width: 680px; padding: 32px 24px; text-align: center; }
+    h1 { margin: 0; font-weight: 300; font-size: clamp(44px, 14vw, 64px); letter-spacing: -0.03em; }
+    h1.small { font-size: 32px; font-weight: 600; letter-spacing: -0.01em; }
+    p { margin: 14px 0 0; color: var(--muted); font-size: 16px; line-height: 1.5; }
+    p.host { color: var(--fg); font-weight: 600; }
+    .btn { height: 38px; padding: 0 24px; border: 1px solid var(--fg); border-radius: 19px; background: transparent; cursor: pointer; font-weight: 600; transition: background 0.2s, color 0.2s, transform 0.15s; }
+    .btn:hover { background: var(--fg); color: var(--bg); }
+    .btn:active { transform: scale(0.96); }
+    .btn.ghost { border-color: var(--border); }
+    main > .btn { margin-top: 28px; }
+
+    .search { display: flex; align-items: center; width: 100%; max-width: 520px; height: 50px; margin: 32px auto 0; border: 1px solid var(--border); border-radius: 25px; transition: max-width 0.4s var(--ease), border-color 0.2s, background 0.2s; }
+    .search:hover { background: var(--hover); }
+    .search:focus-within { max-width: 640px; border-color: var(--fg); background: transparent; }
+    .search input { flex: 1; min-width: 0; height: 100%; padding: 0 8px 0 22px; border: 0; outline: 0; background: transparent; font-size: 16px; }
+    .search input::placeholder { color: var(--muted); }
+    .search button { display: grid; place-items: center; width: 40px; height: 40px; margin-right: 5px; border: 0; border-radius: 50%; background: transparent; cursor: pointer; transition: background 0.2s, transform 0.15s; }
+    .search button:hover { background: var(--press); }
+    .search button:active { transform: scale(0.9); }
+
+    .tiles { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 44px; }
+    .tile { position: relative; width: 104px; padding: 14px 0 12px; border: 0; border-radius: 14px; background: transparent; color: var(--fg); text-decoration: none; cursor: pointer; transition: background 0.2s var(--ease), transform 0.15s var(--ease); }
+    .tile:hover { background: var(--hover); }
+    .tile:active { transform: scale(0.96); }
+    .tile .ic { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 10px; border: 1px solid var(--border); border-radius: 50%; font-size: 20px; font-weight: 600; transition: border-color 0.2s; }
+    .tile:hover .ic { border-color: var(--fg); }
+    .tile .nm { padding: 0 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; }
+    .tile.add { color: var(--muted); }
+    .tile .rm { position: absolute; top: 6px; right: 8px; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; opacity: 0; transition: opacity 0.2s, background 0.2s; }
+    .tile .rm svg { width: 14px; height: 14px; }
+    .tile:hover .rm { opacity: 1; }
+    .tile .rm:hover { background: var(--press); color: var(--fg); }
+
+    .dlg { position: fixed; inset: 0; display: none; place-items: center; background: color-mix(in srgb, var(--bg) 72%, transparent); }
+    .dlg.on { display: grid; animation: in 0.2s var(--ease); }
+    .card { width: min(360px, 90vw); padding: 24px; border: 1px solid var(--border); border-radius: 16px; background: var(--bg); text-align: left; }
+    .card h2 { margin: 0 0 16px; font-size: 20px; font-weight: 600; }
+    .card input { display: block; width: 100%; height: 40px; margin-bottom: 10px; padding: 0 14px; border: 1px solid var(--border); border-radius: 10px; outline: 0; background: transparent; font-size: 15px; transition: border-color 0.2s; }
+    .card input:focus { border-color: var(--fg); }
+    .card .row { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    @keyframes in { from { opacity: 0; } }
+  </style>
+</head>
+<body>
+  <main id="root"></main>
+  <script>
+    const q = new URLSearchParams(location.search);
+    if (q.get('t')) document.documentElement.setAttribute('data-theme', q.get('t'));
+    const root = document.getElementById('root');
+    const SEARCH = /^https:\/\//.test(q.get('s') || '') ? q.get('s') : 'https://duckduckgo.com/?q=';
+    const ICON = {
+      search: '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>',
+      close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+      plus: '<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+    };
+    function h(tag, cls, text, parent) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text != null) e.textContent = text;
+      (parent || root).appendChild(e);
+      return e;
+    }
+    function resolve(raw) {
+      const v = raw.trim();
+      if (!v) return null;
+      if (/^(https?|file|about):/i.test(v)) return v;
+      const hostLike = /^(localhost|(\d{1,3}\.){3}\d{1,3}|([a-z0-9-]+\.)+[a-z]{2,})(:\d+)?([/?#].*)?$/i;
+      if (!/\s/.test(v) && hostLike.test(v)) return (/^(localhost|\d)/i.test(v) ? 'http://' : 'https://') + v;
+      return SEARCH + encodeURIComponent(v);
+    }
+
+    if (q.get('type') === 'error') {
+      const target = q.get('u') || '';
+      const code = q.get('d') || '';
+      const friendly = {
+        ERR_INTERNET_DISCONNECTED: 'You appear to be offline. Check your connection and try again.',
+        ERR_NAME_NOT_RESOLVED: 'The address could not be found. Check the spelling and try again.',
+        ERR_CONNECTION_REFUSED: 'The server refused the connection.',
+        ERR_CONNECTION_TIMED_OUT: 'The server took too long to respond.',
+        ERR_CERT_AUTHORITY_INVALID: 'The site security certificate is not trusted.',
+      };
+      let host = target;
+      try { host = new URL(target).hostname || target; } catch {}
+      document.title = 'Page unavailable';
+      h('h1', 'small', 'This page is unavailable');
+      h('p', 'host', host);
+      h('p', null, friendly[code] || 'The page could not be loaded.');
+      h('p', null, code);
+      const btn = h('button', 'btn', 'Try again');
+      btn.onclick = () => { if (/^(https?|file):/i.test(target)) location.replace(target); };
+    } else {
+      h('h1', null, 'Browsing');
+
+      const box = h('div', 'search');
+      const input = h('input', null, null, box);
+      input.placeholder = 'Search with ' + (q.get('e') || 'DuckDuckGo') + ' or enter an address';
+      input.spellcheck = false;
+      const go = h('button', null, null, box);
+      go.innerHTML = ICON.search;
+      go.setAttribute('aria-label', 'Search');
+      const submit = () => { const u = resolve(input.value); if (u) location.href = u; };
+      input.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+      go.onclick = submit;
+
+      const tiles = h('div', 'tiles');
+      const defaults = [
+        { n: 'DuckDuckGo', u: 'https://duckduckgo.com' },
+        { n: 'Wikipedia', u: 'https://wikipedia.org' },
+        { n: 'YouTube', u: 'https://youtube.com' },
+        { n: 'GitHub', u: 'https://github.com' },
+      ];
+      let list = null;
+      try { list = JSON.parse(localStorage.getItem('shortcuts')); } catch {}
+      if (!Array.isArray(list)) list = defaults;
+      const save = () => { try { localStorage.setItem('shortcuts', JSON.stringify(list)); } catch {} };
+
+      const dlg = h('div', 'dlg', null, document.body);
+      const card = h('div', 'card', null, dlg);
+      h('h2', null, 'Add shortcut', card);
+      const nameIn = h('input', null, null, card); nameIn.placeholder = 'Name';
+      const urlIn = h('input', null, null, card); urlIn.placeholder = 'Address, for example example.com';
+      const row = h('div', 'row', null, card);
+      const cancel = h('button', 'btn ghost', 'Cancel', row);
+      const saveBtn = h('button', 'btn', 'Save', row);
+      const closeDlg = () => dlg.classList.remove('on');
+      cancel.onclick = closeDlg;
+      dlg.onclick = (e) => { if (e.target === dlg) closeDlg(); };
+      saveBtn.onclick = () => {
+        const u = resolve(urlIn.value);
+        if (!u || !/^https?:/i.test(u) || u.startsWith(SEARCH)) { urlIn.focus(); return; }
+        let host = u; try { host = new URL(u).hostname.replace(/^www\./, ''); } catch {}
+        list.push({ n: nameIn.value.trim() || host, u });
+        save(); render(); closeDlg();
+      };
+      card.onkeydown = (e) => { if (e.key === 'Enter') saveBtn.click(); if (e.key === 'Escape') closeDlg(); };
+
+      function render() {
+        tiles.textContent = '';
+        list.forEach((s, i) => {
+          const a = h('a', 'tile', null, tiles);
+          a.href = s.u;
+          h('div', 'ic', (s.n[0] || '?').toUpperCase(), a);
+          h('div', 'nm', s.n, a);
+          const rm = h('button', 'rm', null, a);
+          rm.innerHTML = ICON.close;
+          rm.title = 'Remove';
+          rm.setAttribute('aria-label', 'Remove shortcut');
+          rm.onclick = (e) => { e.preventDefault(); e.stopPropagation(); list.splice(i, 1); save(); render(); };
+        });
+        if (list.length < 10) {
+          const add = h('button', 'tile add', null, tiles);
+          h('div', 'ic', null, add).innerHTML = ICON.plus;
+          h('div', 'nm', 'Add shortcut', add);
+          add.onclick = () => { nameIn.value = ''; urlIn.value = ''; dlg.classList.add('on'); nameIn.focus(); };
+        }
+      }
+      render();
+    }
+  </script>
+</body>
+</html>
